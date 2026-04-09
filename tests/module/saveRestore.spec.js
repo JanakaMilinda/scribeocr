@@ -1,0 +1,177 @@
+// Relative imports are required to run in browser.
+/* eslint-disable import/no-relative-packages */
+import { assert, config } from '../../node_modules/chai/chai.js';
+import scribe from '../../scribe.js';
+import { ASSETS_PATH_KARMA } from '../constants.js';
+
+// Using arrow functions breaks references to `this`.
+/* eslint-disable prefer-arrow-callback */
+/* eslint-disable func-names */
+
+/**
+ *
+ * @param {Array<OcrPage>} ocrArr
+ */
+const standardizeOCRPages = (ocrArr) => {
+  const ocrArrCopy = ocrArr.map((x) => scribe.utils.ocr.clonePage(x));
+
+  ocrArrCopy.forEach((page) => {
+    page.lines.forEach((line) => {
+      line.debug = new scribe.utils.ocr.LineDebugInfo();
+      line.bbox.left = Math.round(line.bbox.left);
+      line.bbox.top = Math.round(line.bbox.top);
+      line.bbox.right = Math.round(line.bbox.right);
+      line.bbox.bottom = Math.round(line.bbox.bottom);
+      line.words.forEach((word) => {
+        word.debug = new scribe.utils.ocr.WordDebugInfo();
+        word.bbox.left = Math.round(word.bbox.left);
+        word.bbox.top = Math.round(word.bbox.top);
+        word.bbox.right = Math.round(word.bbox.right);
+        word.bbox.bottom = Math.round(word.bbox.bottom);
+        word.style = { ...word.style };
+        if (word.style.size) word.style.size = Math.round(word.style.size);
+        word.chars = null;
+      });
+    });
+  });
+
+  return ocrArrCopy;
+};
+
+describe('Check .scribe export function.', function () {
+  this.timeout(10000);
+
+  it('Exporting to .scribe (gzipped, default) and reimporting should restore OCR data without modification', async () => {
+    await scribe.importFiles([`${ASSETS_PATH_KARMA}/E.D.Mich._2_12-cv-13821-AC-DRG_1_0.pdf`]);
+
+    const ocrAllComp1 = standardizeOCRPages(scribe.data.ocr.active);
+
+    scribe.opt.compressScribe = true;
+    const scribeData = await scribe.exportData('scribe');
+
+    // Verify data is gzipped by checking magic bytes
+    const dataArray = new Uint8Array(scribeData);
+    assert.strictEqual(dataArray[0], 0x1F, 'First byte should be gzip magic byte 0x1F');
+    assert.strictEqual(dataArray[1], 0x8B, 'Second byte should be gzip magic byte 0x8B');
+
+    await scribe.terminate();
+    await scribe.importFiles({ scribeFiles: [scribeData] });
+
+    const ocrAllComp2 = standardizeOCRPages(scribe.data.ocr.active);
+
+    assert.deepStrictEqual(ocrAllComp1, ocrAllComp2);
+    await scribe.clear();
+    await scribe.terminate();
+  }).timeout(10000);
+
+  it('Exporting to .scribe (non-gzipped) and reimporting should restore OCR data without modification', async () => {
+    await scribe.importFiles([`${ASSETS_PATH_KARMA}/E.D.Mich._2_12-cv-13821-AC-DRG_1_0.pdf`]);
+
+    const ocrAllComp1 = standardizeOCRPages(scribe.data.ocr.active);
+
+    scribe.opt.compressScribe = false;
+    const scribeData = await scribe.exportData('scribe');
+
+    // Verify data is not gzipped
+    assert.strictEqual(typeof scribeData, 'string', 'Non-gzipped data should be a string');
+    assert.strictEqual(scribeData[0], '{', 'Non-gzipped data should start with {');
+
+    const encoder = new TextEncoder();
+    const scribeDataBuffer = encoder.encode(scribeData).buffer;
+
+    await scribe.terminate();
+    await scribe.importFiles({ scribeFiles: [scribeDataBuffer] });
+
+    const ocrAllComp2 = standardizeOCRPages(scribe.data.ocr.active);
+
+    assert.deepStrictEqual(ocrAllComp1, ocrAllComp2);
+
+    scribe.opt.compressScribe = true;
+    await scribe.clear();
+    await scribe.terminate();
+  }).timeout(10000);
+
+  it('Reimporting .scribe alongside PDF should preserve page angle', async () => {
+    const pdfPath = `${ASSETS_PATH_KARMA}/E.D.Mich._2_12-cv-13821-AC-DRG_1_0.pdf`;
+    await scribe.importFiles([pdfPath]);
+
+    scribe.data.ocr.active[0].angle = 2.5;
+
+    scribe.opt.compressScribe = false;
+    const scribeData = await scribe.exportData('scribe');
+    const encoder = new TextEncoder();
+    const scribeDataBuffer = encoder.encode(scribeData).buffer;
+
+    await scribe.terminate();
+    await scribe.importFiles({ scribeFiles: [scribeDataBuffer], pdfFiles: [pdfPath] });
+
+    assert.strictEqual(scribe.data.pageMetrics[0].angle, 2.5, 'Page angle should be preserved after reimporting .scribe with PDF');
+
+    await scribe.clear();
+    await scribe.terminate();
+  }).timeout(10000);
+
+  it('Exporting with includeExtraTextScribe should add text properties, which are removed on import', async () => {
+    await scribe.importFiles([`${ASSETS_PATH_KARMA}/E.D.Mich._2_12-cv-13821-AC-DRG_1_0.pdf`]);
+
+    const ocrAllComp1 = standardizeOCRPages(scribe.data.ocr.active);
+
+    scribe.opt.compressScribe = false;
+    scribe.opt.includeExtraTextScribe = true;
+    const scribeData = await scribe.exportData('scribe');
+
+    // Verify data contains correct text properties
+    const parsedData = JSON.parse(scribeData);
+    const page = parsedData.ocr[0];
+
+    assert.strictEqual(page.lines[0].text, 'UNITED STATES DISTRICT COURT', 'Line text should be correct');
+    assert.strictEqual(page.pars[0].text, 'UNITED STATES DISTRICT COURT FOR THE EASTERN DISTRICT OF MICHIGAN', 'Paragraph text should be correct');
+    assert.isTrue(page.text.startsWith('UNITED STATES DISTRICT COURT\nFOR THE EASTERN DISTRICT OF MICHIGAN'), 'Page text should start correctly');
+    assert.isTrue(page.text.endsWith('Case 2:12-cv-13821-AC-DRG ECF No. 1, PageID.1 Filed 08/29/12 Page 1 of 6'), 'Page text should end correctly');
+
+    const encoder = new TextEncoder();
+    const scribeDataBuffer = encoder.encode(scribeData).buffer;
+
+    await scribe.terminate();
+    await scribe.importFiles({ scribeFiles: [scribeDataBuffer] });
+
+    // Verify text properties are removed after import
+    const activeOcr = scribe.data.ocr.active;
+    assert.isFalse('text' in activeOcr[0], 'Page should not have text property after import');
+    assert.isFalse('text' in activeOcr[0].lines[0], 'Line should not have text property after import');
+    if (activeOcr[0].pars && activeOcr[0].pars.length > 0) {
+      assert.isFalse('text' in activeOcr[0].pars[0], 'Paragraph should not have text property after import');
+    }
+
+    // Verify OCR data is unchanged
+    const ocrAllComp2 = standardizeOCRPages(scribe.data.ocr.active);
+    assert.deepStrictEqual(ocrAllComp1, ocrAllComp2);
+
+    scribe.opt.compressScribe = true;
+    scribe.opt.includeExtraTextScribe = false;
+    await scribe.clear();
+    await scribe.terminate();
+  }).timeout(10000);
+
+  it('Importing .scribe after terminate() and exporting to PDF should succeed without font errors', async () => {
+    await scribe.importFiles([`${ASSETS_PATH_KARMA}/E.D.Mich._2_12-cv-13821-AC-DRG_1_0.pdf`]);
+
+    scribe.opt.compressScribe = true;
+    const scribeData = await scribe.exportData('scribe');
+
+    await scribe.terminate();
+    await scribe.importFiles({ scribeFiles: [scribeData] });
+
+    scribe.opt.displayMode = 'ebook';
+    const pdfData = await scribe.exportData('pdf');
+
+    assert.isAbove(pdfData.byteLength || pdfData.length, 0);
+
+    await scribe.clear();
+    await scribe.terminate();
+  }).timeout(10000);
+
+  after(async () => {
+    await scribe.terminate();
+  });
+}).timeout(120000);
