@@ -93,48 +93,18 @@ const init = async (params) => {
  * @param {boolean} [options.skipRecPDFTextNative=true] - Skip recognition if input is text-native PDF.
  * @param {boolean} [options.skipRecPDFTextOCR=false] - Skip recognition if input is image-based PDF with existing invisible text layer.
  */
-// const extractText = async (files, langs = ['eng'], outputFormat = 'txt', options = {}) => {
-//   const skipRecPDFTextNative = options?.skipRecPDFTextNative ?? true;
-//   const skipRecPDFTextOCR = options?.skipRecPDFTextOCR ?? false;
-//   init({ ocr: true, font: true });
-//   await importFiles(files);
-//   if (!inputData.xmlMode[0] && !inputData.imageMode && !inputData.pdfMode) throw new Error('No relevant files to process.');
-//   const skipRecPDF = inputData.pdfMode && (inputData.pdfType === 'text' && skipRecPDFTextNative || inputData.pdfType === 'ocr' && skipRecPDFTextOCR);
-//   const skipRecOCR = inputData.xmlMode[0] && !inputData.imageMode && !inputData.pdfMode;
-//   if (!skipRecPDF && !skipRecOCR) await recognize({ langs });
-//   return exportData(outputFormat);
-// };
-/**
- * Updated extractText to handle raw binary data (Uint8Array)
- */
 const extractText = async (files, langs = ['eng'], outputFormat = 'txt', options = {}) => {
   const skipRecPDFTextNative = options?.skipRecPDFTextNative ?? true;
   const skipRecPDFTextOCR = options?.skipRecPDFTextOCR ?? false;
-  
-  // Initialize OCR and Font resources
-  await init({ ocr: true, font: true });
-
-  // importFiles handles the heavy lifting. 
-  // By passing the [uint8Array], we skip the need for file paths.
+  init({ ocr: true, font: true });
   await importFiles(files);
-
-  if (!inputData.xmlMode[0] && !inputData.imageMode && !inputData.pdfMode) {
-    throw new Error('No relevant files to process. Ensure the Uint8Array is valid.');
-  }
-
-  const skipRecPDF = inputData.pdfMode && (
-    (inputData.pdfType === 'text' && skipRecPDFTextNative) || 
-    (inputData.pdfType === 'ocr' && skipRecPDFTextOCR)
-  );
-  
+  if (!inputData.xmlMode[0] && !inputData.imageMode && !inputData.pdfMode) throw new Error('No relevant files to process.');
+  const skipRecPDF = inputData.pdfMode && (inputData.pdfType === 'text' && skipRecPDFTextNative || inputData.pdfType === 'ocr' && skipRecPDFTextOCR);
   const skipRecOCR = inputData.xmlMode[0] && !inputData.imageMode && !inputData.pdfMode;
-
-  if (!skipRecPDF && !skipRecOCR) {
-    await recognize({ langs });
-  }
-
+  if (!skipRecPDF && !skipRecOCR) await recognize({ langs });
   return exportData(outputFormat);
 };
+
 /**
  *
  * @param {OffscreenCanvas} canvas
