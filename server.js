@@ -6,56 +6,42 @@ const app = express();
 app.use(express.json({ limit: '100mb' }));
 app.use(fileUpload());
 
-app.get('/', (req, res) => {
-    res.send('OCR Server is active.');
-});
-
 app.post('/ocr', async (req, res) => {
     console.log('--- NEW REQUEST RECEIVED ---');
     try {
         let base64String;
 
-        // Step 1: Extract Base64
+        // Step 1: Extract Base64 and strip Data URL prefix if present
         if (req.body && req.body.image) {
-            base64String = req.body.image;
+            console.log('Step 1: Found image in req.body');
+            // Remove prefix: "data:image/png;base64,"
+            base64String = req.body.image.replace(/^data:image\/\w+;base64,/, "");
         } else if (req.files && req.files.image) {
+            console.log('Step 1: Found image in req.files');
             base64String = req.files.image.data.toString('base64');
         } else {
             return res.status(400).json({ error: 'No image data provided.' });
         }
 
-        // Step 2: Clean and Format
-        // Strip any existing data prefix just in case, then add a clean one
-        const cleanBase64 = base64String.replace(/^data:image\/\w+;base64,/, "");
-        
-        // We use .png as a generic placeholder so the library's .match(/\.png/) works
-        const dataUrl = `data:image/png;base64,${cleanBase64}`;
+        // Step 2: Convert to Uint8Array
+        console.log(`Step 2: Converting Base64 (len: ${base64String.length}) to Uint8Array`);
+        const buffer = Buffer.from(base64String, 'base64');
+        const uint8Array = new Uint8Array(buffer);
 
-        // Step 3: Dynamic Import
+        // Step 3: Dynamic Import Scribe
         const scribeModule = await import('./scribe.js');
         const scribe = scribeModule.default;
 
-        const fs = require('fs');
-const path = require('path');
+        // Step 4: Call extractText with the binary data
+        // We pass it as [uint8Array] because scribe expects an array of "files"
+        console.log('Step 4: Calling scribe.extractText() with binary buffer...');
+        const result = await scribe.extractText([uint8Array], ['eng'], 'txt'); 
 
-// Extract the base64 data (remove the prefix)
-const base64Data = dataUrl.replace(/^data:image\/png;base64,/, "");
-const tempPath = path.join(__dirname, 'temp_image.png');
-
-// Write to disk
-fs.writeFileSync(tempPath, base64Data, 'base64');
-
-// Pass the path, NOT the data string
-const text = await scribe.extractText(tempPath);
-
-// Cleanup
-fs.unlinkSync(tempPath);
-        
         console.log('Step 5: SUCCESS!');
-        res.json({ text: text }); 
+        res.json({ text: result });
 
     } catch (err) {
-        console.error('CRASH LOGGED:', err.message);
+        console.error('OCR ERROR:', err.message);
         res.status(500).json({ error: err.message });
     }
 });
