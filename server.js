@@ -8,7 +8,10 @@ const app = express();
 
 app.use(express.json({ limit: '100mb' }));
 app.use(fileUpload());
-
+// 1. Root route to confirm server is up
+app.get('/', (req, res) => {
+    res.send('Server Status: Online. Send POST requests to /ocr');
+});
 // Ensure a temp directory exists
 const tempDir = path.join(process.cwd(), 'temp_ocr');
 if (!fs.existsSync(tempDir)) {
