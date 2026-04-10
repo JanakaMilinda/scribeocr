@@ -18,7 +18,7 @@ app.post('/ocr', async (req, res) => {
     try {
         let base64String;
 
-        // 1. Extract the Base64 string from Salesforce JSON or File Upload
+        // 1. Get the raw Base64 string
         if (req.body && req.body.image) {
             base64String = req.body.image;
         } else if (req.files && req.files.image) {
@@ -27,16 +27,24 @@ app.post('/ocr', async (req, res) => {
             return res.status(400).json({ error: 'No image data provided.' });
         }
 
-        // 2. Format as a Data URL to satisfy Scribe's internal 'match' logic
-        const dataUrl = `data:image/png;base64,${base64String}`;
+        // 2. Convert Base64 to a Uint8Array (Standard for Scribe/WASM)
+        const buffer = Buffer.from(base64String, 'base64');
+        const uint8Array = new Uint8Array(buffer);
 
-        // 3. Dynamic import of the library
+        // 3. Create a "Virtual File" object
+        // This gives Scribe the data AND the extension without a long 'filename'
+        const virtualFile = {
+            data: uint8Array,
+            name: 'upload.png' 
+        };
+
         const scribeModule = await import('./scribe.js');
         const scribe = scribeModule.default;
 
-        // 4. Run extraction (passing the string inside an array)
-        console.log('Processing OCR...');
-        const result = await scribe.extractText([dataUrl]);
+        console.log('Running OCR on Virtual File...');
+        
+        // 4. Pass the virtual file object in the array
+        const result = await scribe.extractText([virtualFile]);
         
         res.json({ text: result[0] }); 
 
