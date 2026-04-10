@@ -15,45 +15,41 @@ app.post('/ocr', async (req, res) => {
     try {
         let base64String;
 
-        // 1. Get the base64 string
+        // Step 1: Extract Base64
         if (req.body && req.body.image) {
+            console.log('Step 1: Found image in req.body');
             base64String = req.body.image;
         } else if (req.files && req.files.image) {
+            console.log('Step 1: Found image in req.files');
             base64String = req.files.image.data.toString('base64');
         } else {
-            return res.status(400).json({ error: 'No image found' });
+            console.log('Step 1 FAILED: No image found');
+            return res.status(400).json({ error: 'No image data provided.' });
         }
 
-        // 2. Convert to Buffer
+        // Step 2: Convert to Uint8Array
+        // Scribe needs this raw binary format to pass to its internal WASM/Tesseract engine
+        console.log('Step 2: Converting Base64 to Uint8Array (Length: ' + base64String.length + ')');
         const buffer = Buffer.from(base64String, 'base64');
+        const uint8Array = new Uint8Array(buffer);
 
-        // 3. Dynamic Import Scribe
+        // Step 3: Dynamic Import
+        console.log('Step 3: Importing scribe.js');
         const scribeModule = await import('./scribe.js');
         const scribe = scribeModule.default;
 
-        console.log('Step 4: Running OCR on provided data...');
+        // Step 4: Call extractText with the raw Uint8Array
+        // By passing the array directly, we skip the broken imageUtils.js sorting logic
+        console.log('Step 4: Calling scribe.extractText()...');
+        const result = await scribe.extractText(['https://orgfarm-22f74664a3-dev-ed.develop.lightning.force.com/lightning/o/ContentDocument/home']);
         
-        // Pass an object that mimics a File object. 
-        // This bypasses the 'toString' crash in imageUtils.js
-        const result = await scribe.extractText([{
-            data: new Uint8Array(buffer),
-            name: 'input.png',
-            type: 'image/png'
-        }]);
-        
-        // 5. Check the result structure
-        let finalOutput = '';
-        if (Array.isArray(result) && result.length > 0) {
-            // Join if it's an array of lines/words, or just take the first index
-            finalOutput = typeof result[0] === 'string' ? result[0] : JSON.stringify(result[0]);
-        }
-
-        console.log('Step 5: SUCCESS! Returning text.');
-        res.json({ text: finalOutput }); 
+        console.log('Step 5: SUCCESS!');
+        res.json({ text: result }); 
 
     } catch (err) {
-        console.error('OCR ERROR:', err.message);
-        console.error('STACK:', err.stack);
+        console.error('CRASH LOGGED:');
+        console.error('Message:', err.message);
+        console.error('Stack:', err.stack);
         res.status(500).json({ error: err.message });
     }
 });
