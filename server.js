@@ -35,14 +35,24 @@ app.post('/ocr', async (req, res) => {
         const scribeModule = await import('./scribe.js');
         const scribe = scribeModule.default;
 
-        // Step 4: Call extractText with the Data URL wrapped in an array
-        console.log('Step 4: Calling scribe.extractText() with Data URL...');
-        
-        // Passing [dataUrl] satisfies the library's requirement for an array of strings
-        const result = await scribe.extractText([dataUrl], ['eng'], 'txt');
+        const fs = require('fs');
+const path = require('path');
+
+// Extract the base64 data (remove the prefix)
+const base64Data = dataUrl.replace(/^data:image\/png;base64,/, "");
+const tempPath = path.join(__dirname, 'temp_image.png');
+
+// Write to disk
+fs.writeFileSync(tempPath, base64Data, 'base64');
+
+// Pass the path, NOT the data string
+const text = await scribe.extractText(tempPath);
+
+// Cleanup
+fs.unlinkSync(tempPath);
         
         console.log('Step 5: SUCCESS!');
-        res.json({ text: result }); 
+        res.json({ text: text }); 
 
     } catch (err) {
         console.error('CRASH LOGGED:', err.message);
