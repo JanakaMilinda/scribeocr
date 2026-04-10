@@ -39,12 +39,14 @@ app.post('/ocr', async (req, res) => {
         const scribe = scribeModule.default;
 
         // Step 4: Call extractText with the raw Uint8Array
-        // By passing the array directly, we skip the broken imageUtils.js sorting logic
-        console.log('Step 4: Calling scribe.extractText()...');
-        const result = await scribe.extractText(['https://tesseract.projectnaptha.com/img/eng_bw.png']);
-        
+        // Step 4: Pass the local data you already prepared in Step 2
+        console.log('Step 4: Calling scribe.extractText() with local buffer...');
+
+        // Instead of the Salesforce URL, pass the uint8Array you created
+        const result = await scribe.extractText(uint8Array); 
+
         console.log('Step 5: SUCCESS!');
-        res.json({ text: result}); 
+        res.json({ text: result });
 
     } catch (err) {
         console.error('CRASH LOGGED:');
