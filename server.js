@@ -44,7 +44,7 @@ app.post('/ocr', async (req, res) => {
         const result = await scribe.extractText(['https://orgfarm-22f74664a3-dev-ed.develop.lightning.force.com/lightning/o/ContentDocument/home']);
         
         console.log('Step 5: SUCCESS!');
-        res.json({ text: result }); 
+        res.json({ text: result}); 
 
     } catch (err) {
         console.error('CRASH LOGGED:');
