@@ -17,41 +17,35 @@ app.post('/ocr', async (req, res) => {
 
         // Step 1: Extract Base64
         if (req.body && req.body.image) {
-            console.log('Step 1: Found image in req.body');
             base64String = req.body.image;
         } else if (req.files && req.files.image) {
-            console.log('Step 1: Found image in req.files');
             base64String = req.files.image.data.toString('base64');
         } else {
-            console.log('Step 1 FAILED: No image found');
             return res.status(400).json({ error: 'No image data provided.' });
         }
 
-        // Step 2: Convert to Uint8Array
-        // Scribe needs this raw binary format to pass to its internal WASM/Tesseract engine
-        console.log('Step 2: Converting Base64 to Uint8Array (Length: ' + base64String.length + ')');
-        const buffer = Buffer.from(base64String, 'base64');
-        const uint8Array = new Uint8Array(buffer);
+        // Step 2: Clean and Format
+        // Strip any existing data prefix just in case, then add a clean one
+        const cleanBase64 = base64String.replace(/^data:image\/\w+;base64,/, "");
+        
+        // We use .png as a generic placeholder so the library's .match(/\.png/) works
+        const dataUrl = `data:image/png;base64,${cleanBase64}`;
 
         // Step 3: Dynamic Import
-        console.log('Step 3: Importing scribe.js');
         const scribeModule = await import('./scribe.js');
         const scribe = scribeModule.default;
 
-        // Step 4: Wrap the buffer in an array correctly
-        console.log('Step 4: Calling scribe.extractText() with local buffer...');
-
-        // Most Tesseract-based wrappers expect an array of files. 
-        // If it's a single file, we still put it in [ ].
-        const result = await scribe.extractText([uint8Array]); 
-
+        // Step 4: Call extractText with the Data URL wrapped in an array
+        console.log('Step 4: Calling scribe.extractText() with Data URL...');
+        
+        // Passing [dataUrl] satisfies the library's requirement for an array of strings
+        const result = await scribe.extractText([dataUrl], ['eng'], 'txt');
+        
         console.log('Step 5: SUCCESS!');
-        res.json({ text: result });
+        res.json({ text: result }); 
 
     } catch (err) {
-        console.error('CRASH LOGGED:');
-        console.error('Message:', err.message);
-        console.error('Stack:', err.stack);
+        console.error('CRASH LOGGED:', err.message);
         res.status(500).json({ error: err.message });
     }
 });
