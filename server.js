@@ -15,41 +15,45 @@ app.post('/ocr', async (req, res) => {
     try {
         let base64String;
 
-        // Step 1: Extract Base64
+        // 1. Get the base64 string
         if (req.body && req.body.image) {
-            console.log('Step 1: Found image in req.body');
             base64String = req.body.image;
         } else if (req.files && req.files.image) {
-            console.log('Step 1: Found image in req.files');
             base64String = req.files.image.data.toString('base64');
         } else {
-            console.log('Step 1 FAILED: No image found');
-            return res.status(400).json({ error: 'No image data provided.' });
+            return res.status(400).json({ error: 'No image found' });
         }
 
-        // Step 2: Convert to Uint8Array
-        // Scribe needs this raw binary format to pass to its internal WASM/Tesseract engine
-        console.log('Step 2: Converting Base64 to Uint8Array (Length: ' + base64String.length + ')');
+        // 2. Convert to Buffer
         const buffer = Buffer.from(base64String, 'base64');
-        const uint8Array = new Uint8Array(buffer);
 
-        // Step 3: Dynamic Import
-        console.log('Step 3: Importing scribe.js');
+        // 3. Dynamic Import Scribe
         const scribeModule = await import('./scribe.js');
         const scribe = scribeModule.default;
 
-        // Step 4: Call extractText with the raw Uint8Array
-        // By passing the array directly, we skip the broken imageUtils.js sorting logic
-        console.log('Step 4: Calling scribe.extractText()...');
-        const result = await scribe.extractText(['https://imgv3.fotor.com/images/blog-richtext-image/How-to-Make-Text-Stand-Out-And-More-Readable.jpg']);
+        console.log('Step 4: Running OCR on provided data...');
         
-        console.log('Step 5: SUCCESS!');
-        res.json({ text: result[0] }); 
+        // Pass an object that mimics a File object. 
+        // This bypasses the 'toString' crash in imageUtils.js
+        const result = await scribe.extractText([{
+            data: new Uint8Array(buffer),
+            name: 'input.png',
+            type: 'image/png'
+        }]);
+        
+        // 5. Check the result structure
+        let finalOutput = '';
+        if (Array.isArray(result) && result.length > 0) {
+            // Join if it's an array of lines/words, or just take the first index
+            finalOutput = typeof result[0] === 'string' ? result[0] : JSON.stringify(result[0]);
+        }
+
+        console.log('Step 5: SUCCESS! Returning text.');
+        res.json({ text: finalOutput }); 
 
     } catch (err) {
-        console.error('CRASH LOGGED:');
-        console.error('Message:', err.message);
-        console.error('Stack:', err.stack);
+        console.error('OCR ERROR:', err.message);
+        console.error('STACK:', err.stack);
         res.status(500).json({ error: err.message });
     }
 });
