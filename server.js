@@ -35,16 +35,17 @@ app.post('/ocr', async (req, res) => {
         // Step 4: Call extractText with the binary data
         // We pass it as [uint8Array] because scribe expects an array of "files"
         // Step 4: Call extractText with a "File-like" object
-console.log('Step 4: Calling scribe.extractText() with virtual file object...');
+        // Step 4: Wrap the buffer in a "Virtual File" object
+        console.log('Step 4: Calling scribe.extractText() with virtual file object...');
 
-// Wrapping the buffer in an object with a name property 
-// prevents the .match() error in the internal library.
-const virtualFile = {
-    name: 'input_image.png', 
-    data: uint8Array
-};
+        // We create an object that mimics the 'File' interface the library expects
+        const virtualFile = {
+            name: 'document.png', // This provides the extension for the .match() call
+            data: uint8Array      // This is your actual binary data
+        };
 
-const result = await scribe.extractText([virtualFile], ['eng'], 'txt');
+        // Pass the object inside an array [ ]
+        const result = await scribe.extractText([virtualFile], ['eng'], 'txt');
 
         console.log('Step 5: SUCCESS!');
         res.json({ text: result });
