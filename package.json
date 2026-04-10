@@ -6,7 +6,6 @@
   "directories": {
     "lib": "lib"
   },
-  "type": "module",
   "devDependencies": {
     "@types/mocha": "^10.0.7",
     "@types/node": "^18.0.6",
