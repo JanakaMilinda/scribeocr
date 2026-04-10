@@ -2,7 +2,7 @@
   "name": "scribe.js-ocr",
   "version": "0.10.1",
   "description": "High-quality OCR and text extraction for images and PDFs.",
-  "main": "scribe.js",
+  "main": "server.js",
   "directories": {
     "lib": "lib"
   },
