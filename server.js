@@ -38,12 +38,12 @@ app.post('/ocr', async (req, res) => {
         const scribeModule = await import('./scribe.js');
         const scribe = scribeModule.default;
 
-        // Step 4: Call extractText with the raw Uint8Array
-        // Step 4: Pass the local data you already prepared in Step 2
+        // Step 4: Wrap the buffer in an array correctly
         console.log('Step 4: Calling scribe.extractText() with local buffer...');
 
-        // Instead of the Salesforce URL, pass the uint8Array you created
-        const result = await scribe.extractText(uint8Array); 
+        // Most Tesseract-based wrappers expect an array of files. 
+        // If it's a single file, we still put it in [ ].
+        const result = await scribe.extractText([uint8Array]); 
 
         console.log('Step 5: SUCCESS!');
         res.json({ text: result });
