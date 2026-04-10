@@ -16,33 +16,32 @@ app.get('/', (req, res) => {
 
 app.post('/ocr', async (req, res) => {
     try {
-        let imageData;
+        let base64String;
 
-        // 3. Logic to handle both Salesforce (Base64) and standard File Uploads
+        // 1. Extract the Base64 string from Salesforce JSON or File Upload
         if (req.body && req.body.image) {
-            // Salesforce sends the image as a Base64 string in the "image" field
-            imageData = Buffer.from(req.body.image, 'base64');
-            console.log('Received image from Salesforce (Base64)');
-        } 
-        else if (req.files && req.files.image) {
-            // Standard multipart/form-data upload
-            imageData = req.files.image.data;
-            console.log('Received image from File Upload');
-        } 
-        else {
-            return res.status(400).json({ error: 'No image data provided. Ensure the field name is "image".' });
+            base64String = req.body.image;
+        } else if (req.files && req.files.image) {
+            base64String = req.files.image.data.toString('base64');
+        } else {
+            return res.status(400).json({ error: 'No image data provided.' });
         }
 
-        // Dynamic import for Scribe
+        // 2. Format as a Data URL to satisfy Scribe's internal 'match' logic
+        const dataUrl = `data:image/png;base64,${base64String}`;
+
+        // 3. Dynamic import of the library
         const scribeModule = await import('./scribe.js');
         const scribe = scribeModule.default;
 
-        // Process the Buffer
-        const result = await scribe.extractText([imageData]);
+        // 4. Run extraction (passing the string inside an array)
+        console.log('Processing OCR...');
+        const result = await scribe.extractText([dataUrl]);
         
         res.json({ text: result[0] }); 
+
     } catch (err) {
-        console.error('OCR Error:', err);
+        console.error('Detailed Server Error:', err); 
         res.status(500).json({ error: err.message });
     }
 });
