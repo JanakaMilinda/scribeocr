@@ -1,8 +1,13 @@
 const express = require('express');
 const fileUpload = require('express-fileupload');
-// We do NOT require scribe at the top anymore
 
 const app = express();
+
+// 1. Add JSON parsing middleware (Salesforce sends JSON)
+// Set a 10MB limit to handle high-resolution image strings
+app.use(express.json({ limit: '10mb' }));
+
+// 2. Keep fileUpload for testing with standard HTML forms
 app.use(fileUpload());
 
 app.get('/', (req, res) => {
@@ -11,16 +16,29 @@ app.get('/', (req, res) => {
 
 app.post('/ocr', async (req, res) => {
     try {
-        if (!req.files || !req.files.image) {
-            return res.status(400).json({ error: 'No file uploaded.' });
+        let imageData;
+
+        // 3. Logic to handle both Salesforce (Base64) and standard File Uploads
+        if (req.body && req.body.image) {
+            // Salesforce sends the image as a Base64 string in the "image" field
+            imageData = Buffer.from(req.body.image, 'base64');
+            console.log('Received image from Salesforce (Base64)');
+        } 
+        else if (req.files && req.files.image) {
+            // Standard multipart/form-data upload
+            imageData = req.files.image.data;
+            console.log('Received image from File Upload');
+        } 
+        else {
+            return res.status(400).json({ error: 'No image data provided. Ensure the field name is "image".' });
         }
 
-        // DYNAMIC IMPORT: This bypasses the ERR_REQUIRE_ASYNC_MODULE error
+        // Dynamic import for Scribe
         const scribeModule = await import('./scribe.js');
         const scribe = scribeModule.default;
 
-        // Process the image
-        const result = await scribe.extractText([req.files.image.data]);
+        // Process the Buffer
+        const result = await scribe.extractText([imageData]);
         
         res.json({ text: result[0] }); 
     } catch (err) {
