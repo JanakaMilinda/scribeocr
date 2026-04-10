@@ -1,7 +1,7 @@
-const express = require('express');
-const fileUpload = require('express-fileupload');
-// Point to the local scribe.js file in your root
-const scribe = require('./scribe.js'); 
+import express from 'express';
+import fileUpload from 'express-fileupload';
+import scribe from './scribe.js'; // Ensure the path is correct
+
 const app = express();
 
 app.use(fileUpload());
@@ -9,15 +9,13 @@ app.use(fileUpload());
 app.post('/ocr', async (req, res) => {
     try {
         if (!req.files || !req.files.image) {
-            return res.status(400).send('No file uploaded.');
+            return res.status(400).json({ error: 'No file uploaded.' });
         }
 
-        // Processing the buffer directly
+        // Processing
         const result = await scribe.extractText([req.files.image.data]);
-        
         res.json({ text: result[0] }); 
     } catch (err) {
-        console.error(err);
         res.status(500).json({ error: err.message });
     }
 });

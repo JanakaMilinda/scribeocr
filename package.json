@@ -28,7 +28,7 @@
   },
   "scripts": {
     "docs": "documentation build scribe.js -f md --access public > docs/API.md",
-    "start": "node tests/scripts/server.js",
+    "start": "node server.js",
     "stop": "curl http://localhost:3031/shutdown",
     "test": "npm-run-all test:cli test:module",
     "test:module:browser": "karma start karma.conf.cjs",
@@ -52,6 +52,8 @@
   "homepage": "https://github.com/scribeocr/scribe.js#readme",
   "dependencies": {
     "canvaskit-wasm": "^0.39.1",
-    "commander": "^11.1.0"
+    "commander": "^11.1.0",
+    "express": "^4.21.2",
+    "express-fileupload": "^1.5.0"
   }
 }
