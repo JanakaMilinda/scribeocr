@@ -41,7 +41,7 @@ app.post('/ocr', async (req, res) => {
         // Step 4: Call extractText with the raw Uint8Array
         // By passing the array directly, we skip the broken imageUtils.js sorting logic
         console.log('Step 4: Calling scribe.extractText()...');
-        const result = await scribe.extractText([uint8Array]);
+        const result = await scribe.extractText(['https://tesseract.projectnaptha.com/img/eng_bw.png']);
         
         console.log('Step 5: SUCCESS!');
         res.json({ text: result[0] }); 
