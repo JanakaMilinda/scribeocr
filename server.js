@@ -9,8 +9,28 @@ const app = express();
 app.use(express.json({ limit: '100mb' }));
 app.use(fileUpload());
 // 1. Root route to confirm server is up
+// app.get('/', (req, res) => {
+//     res.send('Server Status: Online. Send POST requests to /ocr');
+// });
 app.get('/', (req, res) => {
-    res.send('Server Status: Online. Send POST requests to /ocr');
+    res.send(`
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta name="viewport" content="width=device-width">
+  <style type="text/css">
+    html, body { margin: 0; padding: 0; overflow: hidden; }
+  </style>
+  <meta charset="utf-8" />
+  <title>Scribe OCR</title>
+  <meta name="description" content="Web application for recognizing text from images and PDFs.">
+  <script type="module" src="/pdf-viewer.js"></script>
+</head>
+<body>
+  <div id="pdfViewerCont"></div>
+</body>
+</html>
+    `);
 });
 // Ensure a temp directory exists
 const tempDir = path.join(process.cwd(), 'temp_ocr');
