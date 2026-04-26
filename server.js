@@ -88,7 +88,7 @@ app.post('/ocr', async (req, res) => {
         // Step 4: Call extractText with the FILE PATH
         // Since the library likes URLs/Paths, we pass the local absolute path
         console.log('Step 4: Calling scribe.extractText() with file path...');
-        const result = await scribe.extractText([tempFilePath], ['eng'], 'txt');
+        const result = await scribe.extractText([tempFilePath], ['eng'], 'hocr');
 
         lastExtractedText = result;
         lastUpdateTimestamp = new Date().toLocaleString();

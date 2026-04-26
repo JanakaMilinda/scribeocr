@@ -1,12 +1,6 @@
 import { clearData } from './js/clear.js';
 import { inputData, opt } from './js/containers/app.js';
-import {
-  annotations,
-  DebugData,
-  layoutDataTables,
-  layoutRegions,
-  ocrAll, ocrAllRaw, pageMetricsAll, visInstructions,
-} from './js/containers/dataContainer.js';
+import { annotations, DebugData, layoutDataTables, layoutRegions, ocrAll, ocrAllRaw, pageMetricsAll, visInstructions,} from './js/containers/dataContainer.js';
 import { FontCont } from './js/containers/fontContainer.js';
 import { ImageCache } from './js/containers/imageContainer.js';
 import coords from './js/coordinates.js';
@@ -22,24 +16,13 @@ import { enableFontOpt, loadBuiltInFontsRaw } from './js/fontContainerMain.js';
 import { gs } from './js/generalWorkerMain.js';
 import { importFiles, importFilesSupp } from './js/import/import.js';
 import { combineOCRPage } from './js/modifyOCR.js';
-import {
-  calcBoxOverlap, countSubstringOccurrences, getRandomAlphanum, replaceSmartQuotes,
-  saveAs,
-} from './js/utils/miscUtils.js';
+import { calcBoxOverlap, countSubstringOccurrences, getRandomAlphanum, replaceSmartQuotes, saveAs,} from './js/utils/miscUtils.js';
 import layout, { calcTableBbox } from './js/objects/layoutObjects.js';
 import ocr from './js/objects/ocrObjects.js';
-import {
-  calcEvalStatsDoc,
-  compareOCR,
-  convertOCRPage,
-  evalOCRPage,
-  recognize, recognizePageImp,
-} from './js/recognizeConvert.js';
+import { calcEvalStatsDoc, compareOCR, convertOCRPage, evalOCRPage, recognize, recognizePageImp,} from './js/recognizeConvert.js';
 import { calcWordMetrics } from './js/utils/fontUtils.js';
 import { imageStrToBlob } from './js/utils/imageUtils.js';
-import {
-  calcConf, checkOcrWordsAdjacent, mergeOcrWords, splitOcrWord,
-} from './js/utils/ocrUtils.js';
+import { calcConf, checkOcrWordsAdjacent, mergeOcrWords, splitOcrWord,} from './js/utils/ocrUtils.js';
 import { assignParagraphs } from './js/utils/reflowPars.js';
 import { writeXlsx, writeXlsxFromRows } from './js/export/writeTabular.js';
 import { calcColumnBounds, detectTablesInPage, makeTableFromBbox } from './js/utils/detectTables.js';
@@ -175,92 +158,53 @@ async function dumpHOCR(dir) {
 class data {
   // TODO: Modify such that debugging data is not calculated by default.
   static debug = DebugData;
-
   static font = FontCont;
-
   static image = ImageCache;
-
   static annotations = annotations;
-
   static layoutRegions = layoutRegions;
-
   static layoutDataTables = layoutDataTables;
-
   static ocr = ocrAll;
-
   static ocrRaw = ocrAllRaw;
-
   static pageMetrics = pageMetricsAll;
-
   static vis = visInstructions;
 }
 
 class utils {
   // OCR utils
   static assignParagraphs = assignParagraphs;
-
   static calcConf = calcConf;
-
   static calcEvalStatsDoc = calcEvalStatsDoc;
-
   static mergeOcrWords = mergeOcrWords;
-
   static checkOcrWordsAdjacent = checkOcrWordsAdjacent;
-
   static splitOcrWord = splitOcrWord;
-
   static ocr = ocr;
-
   // Layout utils
   static calcColumnBounds = calcColumnBounds;
-
   static calcTableBbox = calcTableBbox;
-
   static extractSingleTableContent = extractSingleTableContent;
-
   static detectTablesInPage = detectTablesInPage;
-
   static makeTableFromBbox = makeTableFromBbox;
-
   // Font utils
   static calcWordMetrics = calcWordMetrics;
-
   // Export functions
   static writePdf = writePdf;
-
   static writeHocr = writeHocr;
-
   static writeText = writeText;
-
   static writeXlsx = writeXlsx;
-
   static writeXlsxFromRows = writeXlsxFromRows;
-
   // Misc utils
   static calcBoxOverlap = calcBoxOverlap;
-
   static convertToCSV = convertToCsv;
-
   static replaceSmartQuotes = replaceSmartQuotes;
-
   static getRandomAlphanum = getRandomAlphanum;
-
   static countSubstringOccurrences = countSubstringOccurrences;
-
   static coords = coords;
-
   static imageStrToBlob = imageStrToBlob;
-
   static writeDebugCsv = writeDebugCsv;
-
   static drawDebugImages = drawDebugImages;
-
   static dumpDebugImages = dumpDebugImages;
-
   static dumpHOCR = dumpHOCR;
-
   static renderPageStatic = renderPageStatic;
-
   static saveAs = saveAs;
 }
 
