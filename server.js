@@ -81,8 +81,7 @@ app.post('/ocr', async (req, res) => {
         return res.status(401).json({ error: 'Unauthorized: Access Denied' });
     }
 
-    console.log('--- NEW OCR REQUEST RECEIVED ---');
-    // console.log('request: ',req);
+    console.log('--- NEW OCR REQUEST RECEIVED ---', req);
     let tempFilePath = null;
 
     try {
