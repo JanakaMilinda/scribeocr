@@ -2,8 +2,7 @@ const express = require('express');
 const fileUpload = require('express-fileupload');
 const fs = require('fs');
 const path = require('path');
-const { v4: uuidv4 } = require('uuid'); // Install this: npm install uuid
-
+const { v4: uuidv4 } = require('uuid');
 const app = express();
 
 // This stores the result in memory. Note: This clears if the server restarts.
@@ -12,10 +11,6 @@ let lastUpdateTimestamp = "N/A";
 
 app.use(express.json({ limit: '100mb' }));
 app.use(fileUpload());
-// 1. Root route to confirm server is up
-// app.get('/', (req, res) => {
-//     res.send('Server Status: Online. Send POST requests to /ocr');
-// });
 
 app.get('/', (req, res) => {
     const html = `
@@ -57,14 +52,19 @@ const tempDir = path.join(process.cwd(), 'temp_ocr');
 if (!fs.existsSync(tempDir)) {
     fs.mkdirSync(tempDir);
 }
-
+const VALID_API_KEY = "12345678";
 app.post('/ocr', async (req, res) => {
+    const clientKey = req.header('X-API-KEY');
+
+    if (!clientKey || clientKey !== VALID_API_KEY) {
+        console.warn(`Unauthorized access attempt from IP: ${req.ip}`);
+        return res.status(401).json({ error: 'Unauthorized: Access Denied' });
+    }
     console.log('--- NEW REQUEST RECEIVED ---');
     let tempFilePath = null;
-
     try {
         let base64String;
-
+        
         // Step 1: Extract Base64
         if (req.body && req.body.image) {
             base64String = req.body.image.replace(/^data:image\/\w+;base64,/, "");
