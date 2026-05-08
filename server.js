@@ -82,6 +82,7 @@ app.post('/ocr', async (req, res) => {
     }
 
     console.log('--- NEW OCR REQUEST RECEIVED ---');
+    console.log('request: ',req);
     let tempFilePath = null;
 
     try {
