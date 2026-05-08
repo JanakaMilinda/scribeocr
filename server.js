@@ -26,7 +26,6 @@ app.get('/', (req, res) => {
 });
 
 app.post('/ocr', async (req, res) => {
-    // API Key Validation
     const clientKey = req.header('X-API-KEY');
     if (!clientKey || clientKey !== VALID_API_KEY) {
         console.warn(`[SECURITY] Unauthorized access attempt from IP: ${req.ip}`);
@@ -38,19 +37,18 @@ app.post('/ocr', async (req, res) => {
 
     try {
         let base64String;
-        let fileExtension = req.body.ext || 'png'; 
-        
+        let fileExtension = req.body.ext || 'png';
+        let result; // ← declared here so both branches can assign it
+
         if (req.body && req.body.file) {
             const matches = req.body.file.match(/^data:(.+);base64,(.+)$/);
             if (matches) {
                 base64String = matches[2];
-                // If Salesforce didn't send 'ext', try to detect from Data URI
                 if (!req.body.ext) {
                     fileExtension = matches[1].includes('pdf') ? 'pdf' : 'png';
                 }
             } else {
                 base64String = req.body.file;
-                // Fallback: Manual detection if no 'ext' and no Data URI
                 if (!req.body.ext && base64String.startsWith('JVBERi')) {
                     fileExtension = 'pdf';
                 }
@@ -62,23 +60,24 @@ app.post('/ocr', async (req, res) => {
             return res.status(400).json({ error: 'No file data provided.' });
         }
 
-        // 3. Save to temporary path with correct extension
         const fileName = `${uuidv4()}.${fileExtension}`;
         tempFilePath = path.join(tempDir, fileName);
         fs.writeFileSync(tempFilePath, base64String, { encoding: 'base64' });
 
-        // 4. Engine Initialization & Processing
         const scribeModule = await import('./scribe.js');
         const scribe = scribeModule.default;
 
-        // CRITICAL: Explicitly initialize PDF engine if file is a PDF
         if (fileExtension === 'pdf') {
             console.log('Initializing PDF Engine...');
             await scribe.init({ ocr: true, font: true, pdf: true });
+            await scribe.importFiles([tempFilePath]); // ← use tempFilePath, not hardcoded string
+            await scribe.recognize({ langs: ['eng'] });
+            result = await scribe.exportData('txt');
+            await scribe.clear();
+        } else {
+            console.log(`Extracting text from ${fileExtension.toUpperCase()}...`);
+            result = await scribe.extractText([tempFilePath], ['eng'], 'txt');
         }
-
-        console.log(`Step 4: Extracting text from ${fileExtension.toUpperCase()}...`);
-        const result = await scribe.extractText([tempFilePath], ['eng'], 'txt');
 
         res.json({ text: result });
 
@@ -86,7 +85,6 @@ app.post('/ocr', async (req, res) => {
         console.error('OCR ENGINE ERROR:', err.message);
         res.status(500).json({ error: 'Processing failed: ' + err.message });
     } finally {
-        // 6. Cleanup
         if (tempFilePath && fs.existsSync(tempFilePath)) {
             try {
                 fs.unlinkSync(tempFilePath);
