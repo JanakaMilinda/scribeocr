@@ -1,8 +1,11 @@
-const express = require('express');
-const fileUpload = require('express-fileupload');
-const fs = require('fs');
-const path = require('path');
-const { v4: uuidv4 } = require('uuid');
+import express from 'express';
+import fileUpload from 'express-fileupload';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { v4 as uuidv4 } from 'uuid';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3000;
 const VALID_API_KEY = "12345678"; // MUST match Salesforce Named Credential password
