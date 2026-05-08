@@ -79,7 +79,7 @@ const init = async (params) => {
 const extractText = async (files, langs = ['eng'], outputFormat = 'txt', options = {}) => {
   const skipRecPDFTextNative = options?.skipRecPDFTextNative ?? true;
   const skipRecPDFTextOCR = options?.skipRecPDFTextOCR ?? false;
-  init({ ocr: true, font: true });
+  init({ ocr: true, font: true , pdf: true});
   await importFiles(files);
   if (!inputData.xmlMode[0] && !inputData.imageMode && !inputData.pdfMode) throw new Error('No relevant files to process.');
   const skipRecPDF = inputData.pdfMode && (inputData.pdfType === 'text' && skipRecPDFTextNative || inputData.pdfType === 'ocr' && skipRecPDFTextOCR);

@@ -90,7 +90,6 @@ app.post('/ocr', async (req, res) => {
 
         // 2. Extraction & Extension Detection
         if (req.body && req.body.file) {
-            // Handle Data URIs (e.g., data:application/pdf;base64,...)
             const matches = req.body.file.match(/^data:(.+);base64,(.+)$/);
             if (matches) {
                 const mimeType = matches[1];
@@ -98,6 +97,13 @@ app.post('/ocr', async (req, res) => {
                 fileExtension = mimeType.includes('pdf') ? 'pdf' : 'png';
             } else {
                 base64String = req.body.file;
+                // MANUALLY DETECT PDF IF NO PREFIX:
+                // Raw Base64 for PDF always starts with 'JVBERi'
+                if (base64String.startsWith('JVBERi')) {
+                    fileExtension = 'pdf';
+                } else {
+                    fileExtension = 'png';
+                }
             }
         } else if (req.files && req.files.file) {
             // Handle Multipart Form-Data (Postman style)
