@@ -3,10 +3,7 @@ const fileUpload = require('express-fileupload');
 const fs = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
-
 const app = express();
-
-// --- CONFIGURATION ---
 const PORT = process.env.PORT || 3000;
 const VALID_API_KEY = "12345678"; // MUST match Salesforce Named Credential password
 const tempDir = path.join(process.cwd(), 'temp_ocr');
@@ -27,42 +24,9 @@ app.get('/', (req, res) => {
         timestamp: new Date().toISOString()
     });
 });
-// app.get('/', (req, res) => {
-//     const html = `
-//     <!DOCTYPE html>
-//     <html>
-//     <head>
-//         <title>OCR Server Status</title>
-//         <style>
-//             body { font-family: sans-serif; line-height: 1.6; padding: 20px; max-width: 800px; margin: auto; background: #f4f4f9; }
-//             .container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-//             h1 { color: #333; border-bottom: 2px solid #007bff; padding-bottom: 10px; }
-//             .status { font-weight: bold; color: green; }
-//             .timestamp { color: #666; font-size: 0.9em; }
-//             pre { background: #eee; padding: 15px; border-radius: 5px; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word; border: 1px solid #ccc; }
-//         </style>
-//     </head>
-//     <body>
-//         <div class="container">
-//             <h1>OCR Server Dashboard</h1>
-//             <p>Server Status: <span class="status">Online</span></p>
-//             <p class="timestamp">Last Updated: ${lastUpdateTimestamp}</p>
-//             <hr>
-//             <h3>Extracted Text:</h3>
-//             <pre>${lastExtractedText}</pre>
-//             <p><small>Send POST requests to <code>/ocr</code> to update this content.</small></p>
-//         </div>
-//         <script>
-//             // Optional: Refresh the page every 30 seconds to see updates
-//             setTimeout(() => { location.reload(); }, 30000);
-//         </script>
-//     </body>
-//     </html>
-//     `;
-//     res.send(html);
-// });
 
 app.post('/ocr', async (req, res) => {
+    // API Key Validation
     const clientKey = req.header('X-API-KEY');
     if (!clientKey || clientKey !== VALID_API_KEY) {
         console.warn(`[SECURITY] Unauthorized access attempt from IP: ${req.ip}`);
@@ -74,18 +38,19 @@ app.post('/ocr', async (req, res) => {
 
     try {
         let base64String;
-        let fileExtension = req.body.ext || 'png';
-
-        // Extraction Logic
+        let fileExtension = req.body.ext || 'png'; 
+        
         if (req.body && req.body.file) {
             const matches = req.body.file.match(/^data:(.+);base64,(.+)$/);
             if (matches) {
                 base64String = matches[2];
+                // If Salesforce didn't send 'ext', try to detect from Data URI
                 if (!req.body.ext) {
                     fileExtension = matches[1].includes('pdf') ? 'pdf' : 'png';
                 }
             } else {
                 base64String = req.body.file;
+                // Fallback: Manual detection if no 'ext' and no Data URI
                 if (!req.body.ext && base64String.startsWith('JVBERi')) {
                     fileExtension = 'pdf';
                 }
@@ -97,35 +62,23 @@ app.post('/ocr', async (req, res) => {
             return res.status(400).json({ error: 'No file data provided.' });
         }
 
-        // Save temp file
+        // 3. Save to temporary path with correct extension
         const fileName = `${uuidv4()}.${fileExtension}`;
         tempFilePath = path.join(tempDir, fileName);
         fs.writeFileSync(tempFilePath, base64String, { encoding: 'base64' });
 
+        // 4. Engine Initialization & Processing
         const scribeModule = await import('./scribe.js');
         const scribe = scribeModule.default;
 
-        // Always await init with pdf:true so MuPDF is ready before importFiles
-        await scribe.init({ ocr: true, font: true, pdf: true });
-
-        await scribe.importFiles([tempFilePath]);
-
-        const { inputData } = scribe;
-        if (!inputData.xmlMode[0] && !inputData.imageMode && !inputData.pdfMode) {
-            throw new Error('No relevant files to process.');
+        // CRITICAL: Explicitly initialize PDF engine if file is a PDF
+        if (fileExtension === 'pdf') {
+            console.log('Initializing PDF Engine...');
+            await scribe.init({ ocr: true, font: true, pdf: true });
         }
 
-        const isNativePDF = inputData.pdfMode && inputData.pdfType === 'text';
-        const isXmlOnly  = inputData.xmlMode[0] && !inputData.imageMode && !inputData.pdfMode;
-
-        if (!isNativePDF && !isXmlOnly) {
-            await scribe.recognize({ langs: ['eng'] });
-        }
-
-        const result = await scribe.exportData('txt');
-
-        // Clear state between requests so page data doesn't bleed into next call
-        await scribe.clear();
+        console.log(`Step 4: Extracting text from ${fileExtension.toUpperCase()}...`);
+        const result = await scribe.extractText([tempFilePath], ['eng'], 'txt');
 
         res.json({ text: result });
 
@@ -133,6 +86,7 @@ app.post('/ocr', async (req, res) => {
         console.error('OCR ENGINE ERROR:', err.message);
         res.status(500).json({ error: 'Processing failed: ' + err.message });
     } finally {
+        // 6. Cleanup
         if (tempFilePath && fs.existsSync(tempFilePath)) {
             try {
                 fs.unlinkSync(tempFilePath);
