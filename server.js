@@ -66,10 +66,10 @@ app.post('/ocr', async (req, res) => {
         let base64String;
         
         // Step 1: Extract Base64
-        if (req.body && req.body.image) {
-            base64String = req.body.image.replace(/^data:image\/\w+;base64,/, "");
-        } else if (req.files && req.files.image) {
-            base64String = req.files.image.data.toString('base64');
+        if (req.body && req.body.file) {
+            base64String = req.body.file.replace(/^data:file\/\w+;base64,/, "");
+        } else if (req.files && req.files.file) {
+            base64String = req.files.file.data.toString('base64');
         } else {
             return res.status(400).json({ error: 'No image data provided.' });
         }
