@@ -74,73 +74,74 @@ app.get('/', (req, res) => {
  * Implements Ingress API Key validation and Zero-Persistence cleanup.
  */
 app.post('/ocr', async (req, res) => {
-    // 1. API Key Validation (Security Layer)
+    // 1. API Key Validation
     const clientKey = req.header('X-API-KEY');
     if (!clientKey || clientKey !== VALID_API_KEY) {
         console.warn(`[SECURITY] Unauthorized access attempt from IP: ${req.ip}`);
         return res.status(401).json({ error: 'Unauthorized: Access Denied' });
     }
 
-    console.log('--- NEW OCR REQUEST RECEIVED ---', req);
+    console.log('--- NEW OCR REQUEST RECEIVED ---');
     let tempFilePath = null;
 
     try {
         let base64String;
-        let fileExtension = 'png'; // Default fallback
+        // Priority 1: Explicit extension from Salesforce
+        // Priority 2: Default to png
+        let fileExtension = req.body.ext || 'png'; 
 
-        // 2. Extraction & Extension Detection
+        // 2. Extraction Logic
         if (req.body && req.body.file) {
             const matches = req.body.file.match(/^data:(.+);base64,(.+)$/);
             if (matches) {
-                const mimeType = matches[1];
                 base64String = matches[2];
-                fileExtension = mimeType.includes('pdf') ? 'pdf' : 'png';
+                // If Salesforce didn't send 'ext', try to detect from Data URI
+                if (!req.body.ext) {
+                    fileExtension = matches[1].includes('pdf') ? 'pdf' : 'png';
+                }
             } else {
                 base64String = req.body.file;
-                // MANUALLY DETECT PDF IF NO PREFIX:
-                // Raw Base64 for PDF always starts with 'JVBERi'
-                if (base64String.startsWith('JVBERi')) {
+                // Fallback: Manual detection if no 'ext' and no Data URI
+                if (!req.body.ext && base64String.startsWith('JVBERi')) {
                     fileExtension = 'pdf';
-                } else {
-                    fileExtension = 'png';
                 }
             }
         } else if (req.files && req.files.file) {
-            // Handle Multipart Form-Data (Postman style)
             base64String = req.files.file.data.toString('base64');
             fileExtension = path.extname(req.files.file.name).replace('.', '').toLowerCase() || 'png';
         } else {
-            return res.status(400).json({ error: 'No file data provided in field "file".' });
+            return res.status(400).json({ error: 'No file data provided.' });
         }
 
-        // 3. Save to Ephemeral Volume
+        // 3. Save to temporary path with correct extension
         const fileName = `${uuidv4()}.${fileExtension}`;
         tempFilePath = path.join(tempDir, fileName);
-        
-        console.log(`Step 2: Saving ${fileExtension.toUpperCase()} to temporary path.`);
         fs.writeFileSync(tempFilePath, base64String, { encoding: 'base64' });
 
-        // 4. Secure Local Import & Execution
+        // 4. Engine Initialization & Processing
         const scribeModule = await import('./scribe.js');
         const scribe = scribeModule.default;
 
-        console.log(`Step 4: Orchestrating Scribe.js Engine...`);
+        // CRITICAL: Explicitly initialize PDF engine if file is a PDF
+        if (fileExtension === 'pdf') {
+            console.log('Initializing PDF Engine...');
+            await scribe.init({ ocr: true, font: true, pdf: true });
+        }
+
+        console.log(`Step 4: Extracting text from ${fileExtension.toUpperCase()}...`);
         const result = await scribe.extractText([tempFilePath], ['eng'], 'txt');
 
-        // 5. Successful Response
-        console.log('Step 5: SUCCESS - Returning extracted text.');
         res.json({ text: result });
 
     } catch (err) {
         console.error('OCR ENGINE ERROR:', err.message);
         res.status(500).json({ error: 'Processing failed: ' + err.message });
     } finally {
-        // 6. Primary Cleanup (Immediate fs.unlink)
-        // Ensures Zero-Data Persistence even if the process fails mid-way.
+        // 6. Cleanup
         if (tempFilePath && fs.existsSync(tempFilePath)) {
             try {
                 fs.unlinkSync(tempFilePath);
-                console.log('Step 6: Primary Cleanup verified. File purged.');
+                console.log('File purged from ephemeral storage.');
             } catch (cleanupErr) {
                 console.error('Cleanup Warning:', cleanupErr.message);
             }
